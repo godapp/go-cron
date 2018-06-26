@@ -335,14 +335,14 @@ func (c *Cron) Stop() {
 
 // entrySnapshot returns a copy of the current cron entry list.
 func (c *Cron) entrySnapshot() []*Entry {
-	entries := []*Entry{}
-	for _, e := range c.entries {
-		entries = append(entries, &Entry{
+	entries := make([]*Entry, len(c.entries))
+	for i, e := range c.entries {
+		entries[i] = &Entry{
 			Schedule: e.Schedule,
 			Next:     e.Next,
 			Prev:     e.Prev,
 			Job:      e.Job,
-		})
+		}
 	}
 	return entries
 }
