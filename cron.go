@@ -196,7 +196,7 @@ func (c *Cron) Schedule(schedule Schedule, cmd Job, names ...string) {
 	if !c.running {
 		p := c.pos(name)
 		if p != -1 {
-			fmt.Errorf("Duplicate names not allowed")
+			c.logf("Duplicate names not allowed")
 		}
 
 		c.entries = append(c.entries, entry)
