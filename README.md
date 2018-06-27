@@ -75,58 +75,38 @@ Cron表达式是一个表示时间的集合，以空格来分割成6个时间表
 
 问号（？）只允许在“**日**”和“**星期**”字段中出现。它一个不确定的值，当“日”或“星期”不确定时，用来替代星号(\*)指定某月的某一日，或者是某个星期。
 
-## 预定义时间表达式
+## 预设表达式
 
 以下是Cron库预设的时间表达式：
 
-Entry                  | Description                                | Equivalent To
------                  | -----------                                | -------------
-@yearly (or @annually) | Run once a year, midnight, Jan. 1st        | 0 0 0 1 1 *
-@monthly               | Run once a month, midnight, first of month | 0 0 0 1 * *
-@weekly                | Run once a week, midnight on Sunday        | 0 0 0 * * 0
-@daily (or @midnight)  | Run once a day, midnight                   | 0 0 0 * * *
-@hourly                | Run once an hour, beginning of hour        | 0 0 * * * *
+预设表达式                | 描述                         | 对应Cron表达式
+-----                  | -----------                  | -------------
+@yearly (或 @annually) | 每年1月1日凌晨00:00:00运行一次  | 0 0 0 1 1 *
+@monthly               | 每个月1日凌晨00:00:00运行一次   | 0 0 0 1 * *
+@weekly                | 每个星期日凌晨00:00:00运行一次  | 0 0 0 * * 0
+@daily (或 @midnight)  | 每天凌晨00:00:00运行一次       | 0 0 0 * * *
+@hourly                | 每个小时的00:00运行一次        | 0 0 * * * *
 
-## Intervals
+## 固定时间间隔
 
-You may also schedule a job to execute at fixed intervals, starting at the time it's added
-or cron is run. This is supported by formatting the cron spec like this:
+你可能还需要固定时间间隔的定时器。Cron支持以下表达式设置固定间隔:
 
     @every <duration>
 
-where "duration" is a string accepted by time.ParseDuration
-(http://golang.org/pkg/time/#ParseDuration).
+这里的 "duration" 是Golang中的Duration规则，最小单位为“秒”。Duration规则，见：[http://golang.org/pkg/time/#ParseDuration](http://golang.org/pkg/time/#ParseDuration).
 
-For example, "@every 1h30m10s" would indicate a schedule that activates immediately,
-and then every 1 hour, 30 minutes, 10 seconds.
+例如设置："@every 1h30m10s", Cron会立即执行一次，然后，每1小时30分钟10秒定时执行。
 
-Note: The interval does not take the job runtime into account.  For example,
-if a job takes 3 minutes to run, and it is scheduled to run every 5 minutes,
-it will have only 2 minutes of idle time between each run.
+需要注意：定时间隔的任务，前后调度时间点是固定的，不会因为执行时间而被顺延。
+例如，`@every 5m`设置5分钟间隔的定时任务，若其中执行任务过程花去3分钟，则下一个任务调度时间在2分钟后。
 
-## Time zones
+## 时区
 
-All interpretation and scheduling is done in the machine's local time zone (as
-provided by the Go time package (http://www.golang.org/pkg/time).
+Cron的时间解析和调度安排都基于机器的当地时区，见Golang的时间包： [http://www.golang.org/pkg/time](http://www.golang.org/pkg/time)
 
 Be aware that jobs scheduled during daylight-savings leap-ahead transitions will
 not be run!
 
-## Thread safety
+## 线程安全与时序
 
-Since the Cron service runs concurrently with the calling code, some amount of
-care must be taken to ensure proper synchronization.
-
-All cron methods are designed to be correctly synchronized as long as the caller
-ensures that invocations have a clear happens-before ordering between them.
-
-## Implementation
-
-Cron entries are stored in an array, sorted by their next activation time.  Cron
-sleeps until the next job is due to be run.
-
-Upon waking:
- - it runs each entry that is active on that second
- - it calculates the next run times for the jobs that were run
- - it re-sorts the array of entries by next activation time.
- - it goes to sleep until the soonest job.
+Cron调度的Func/Job，都在独立协程中异步运行。它们的运行顺序，基于它们触发调度的时间点。
