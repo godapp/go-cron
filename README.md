@@ -10,15 +10,15 @@ A Fork of [https://github.com/robfig/cron](https://github.com/robfig/cron) And [
 
 ```go
 c := cron.New()
-c.AddFunc("0 30 * * * *", func() { fmt.Println("Every hour on the half hour") })
-c.AddFunc("@hourly",      func() { fmt.Println("Every hour") })
-c.AddFunc("@every 1h30m", func() { fmt.Println("Every hour thirty") })
+c.AddFunc("0 30 * * * *", func(ctx *JobContext) { fmt.Println("Every hour on the half hour") })
+c.AddFunc("@hourly",      func(ctx *JobContext) { fmt.Println("Every hour") })
+c.AddFunc("@every 1h30m", func(ctx *JobContext) { fmt.Println("Every hour thirty") })
 c.Start()
 ..
 // 注册的回调函数将会异步地在Goroutine中被回调
 ...
 // 也可以向运行中的Cron注册
-c.AddFunc("@daily", func() { fmt.Println("Every day") })
+c.AddFunc("@daily", func(ctx *JobContext) { fmt.Println("Every day") })
 ..
 // Inspect the cron job entries' next and previous run times.
 inspect(c.Entries())

@@ -50,7 +50,7 @@ const (
 	starBit = 1 << 63
 )
 
-// Next returns the next time this schedule is activated, greater than the given
+// NextTime returns the next time this schedule is activated, greater than the given
 // time.  If no time can be found to satisfy the schedule, return the zero time.
 func (s *SpecSchedule) Next(t time.Time) time.Time {
 	// General approach:

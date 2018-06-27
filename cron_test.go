@@ -279,9 +279,9 @@ func TestRunningMultipleSchedules(t *testing.T) {
 	cron.AddFunc("0 0 0 1 1 ?", func() {})
 	cron.AddFunc("0 0 0 31 12 ?", func() {})
 	cron.AddFunc("* * * * * ?", func() { wg.Done() })
-	cron.Schedule(Every(time.Minute), FuncJob(func() {}))
-	cron.Schedule(Every(time.Second), FuncJob(func() { wg.Done() }))
-	cron.Schedule(Every(time.Hour), FuncJob(func() {}))
+	cron.Schedule(Every(time.Minute), JobWrapper(func() {}))
+	cron.Schedule(Every(time.Second), JobWrapper(func() { wg.Done() }))
+	cron.Schedule(Every(time.Hour), JobWrapper(func() {}))
 
 	cron.Start()
 	defer cron.Stop()
@@ -348,12 +348,12 @@ func TestStopWithoutStart(t *testing.T) {
 	cron.Stop()
 }
 
-type testJob struct {
+type testJob2 struct {
 	wg   *sync.WaitGroup
 	name string
 }
 
-func (t testJob) Run() {
+func (t testJob2) Run(ctx *JobContext) {
 	t.wg.Done()
 }
 
@@ -363,31 +363,6 @@ func TestInvalidJobSpec(t *testing.T) {
 	err := cron.AddJob("this will not parse", nil)
 	if err == nil {
 		t.Errorf("expected an error with invalid spec, got nil")
-	}
-}
-
-// Test blocking run method behaves as Start()
-func TestBlockingRun(t *testing.T) {
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	cron := New()
-	cron.AddFunc("* * * * * ?", func() { wg.Done() })
-
-	var unblockChan = make(chan struct{})
-
-	go func() {
-		cron.Run()
-		close(unblockChan)
-	}()
-	defer cron.Stop()
-
-	select {
-	case <-time.After(OneSecond):
-		t.Error("expected job fires")
-	case <-unblockChan:
-		t.Error("expected that Run() blocks")
-	case <-wait(wg):
 	}
 }
 
@@ -418,18 +393,35 @@ func TestStartNoop(t *testing.T) {
 	}
 }
 
+func TestJob2Count(t *testing.T) {
+	cron := New()
+	cron.Start()
+	defer cron.Stop()
+
+	count := 0
+	cron.AddFunc2("@every 1s", func(ctx *JobContext) {
+		count = ctx.Count
+	}, "job2")
+
+	<-time.After(time.Second * 3)
+
+	if 3 != count {
+		t.Fatalf("Job invoke not in the right count.  (expected) %d != %d (actual)", 3, count)
+	}
+}
+
 // Simple test using Runnables.
 func TestJob(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
 	cron := New()
-	cron.AddJob("0 0 0 30 Feb ?", testJob{wg, "job0"})
-	cron.AddJob("0 0 0 1 1 ?", testJob{wg, "job1"})
-	cron.AddJob("* * * * * ?", testJob{wg, "job2"})
-	cron.AddJob("1 0 0 1 1 ?", testJob{wg, "job3"})
-	cron.Schedule(Every(5*time.Second+5*time.Nanosecond), testJob{wg, "job4"})
-	cron.Schedule(Every(5*time.Minute), testJob{wg, "job5"})
+	cron.AddJob2("0 0 0 30 Feb ?", testJob2{wg, "job0"})
+	cron.AddJob2("0 0 0 1 1 ?", testJob2{wg, "job1"})
+	cron.AddJob2("* * * * * ?", testJob2{wg, "job2"})
+	cron.AddJob2("1 0 0 1 1 ?", testJob2{wg, "job3"})
+	cron.Schedule2(Every(5*time.Second+5*time.Nanosecond), testJob2{wg, "job4"})
+	cron.Schedule2(Every(5*time.Minute), testJob2{wg, "job5"})
 
 	cron.Start()
 	defer cron.Stop()
@@ -445,7 +437,7 @@ func TestJob(t *testing.T) {
 
 	var actuals []string
 	for _, entry := range cron.Entries() {
-		actuals = append(actuals, entry.Job.(testJob).name)
+		actuals = append(actuals, entry.Job.(testJob2).name)
 	}
 
 	for i, expected := range expecteds {
@@ -466,7 +458,7 @@ func TestJobWithZeroTimeDoesNotRun(t *testing.T) {
 	cron := New()
 	calls := 0
 	cron.AddFunc("* * * * * *", func() { calls += 1 })
-	cron.Schedule(new(ZeroSchedule), FuncJob(func() { t.Error("expected zero task will not run") }))
+	cron.Schedule(new(ZeroSchedule), JobWrapper(func() { t.Error("expected zero task will not run") }))
 	cron.Start()
 	defer cron.Stop()
 	<-time.After(OneSecond)
